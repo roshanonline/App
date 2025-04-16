@@ -1,36 +1,42 @@
+// screens/ScoreScreen.js
 import React, { useContext } from 'react';
 import { View, Text, Button, StyleSheet } from 'react-native';
 import { GameContext } from '../context/GameContext';
-import { UserContext } from '../context/UserContext'; // Maybe show best score
+// import { UserContext } from '../context/UserContext'; // To potentially save high score
 
-function ScoreScreen({ navigation }) {
-   const { score, resetGame } = useContext(GameContext);
-   // TODO: Fetch best score from user context or API
+function ScoreScreen({ route, navigation }) {
+   const { finalScore, levelReached } = route.params;
+   const { resetGame } = useContext(GameContext);
+   // const { user, token } = useContext(UserContext); // If saving score
 
-  const handlePlayAgain = () => {
-      resetGame();
-      navigation.navigate('Home'); // Or navigate back to GameMode selection
-  }
+   // TODO: Add logic here or in a useEffect to save the finalScore to the backend if user is logged in
 
-  const handleShare = () => {
-      // TODO: Implement sharing functionality (React Native Share API)
-      alert(`Sharing score: ${score}`);
-  }
+   const handlePlayAgain = () => {
+      resetGame(); // Ensure context is reset
+      // Pop everything off the stack and go back to the first screen (Home)
+      navigation.popToTop();
+   }
+
+   const handleGoToLeaderboard = () => {
+      // Navigate to leaderboard, potentially replacing this screen
+      // or allowing back navigation. Simple navigate for now.
+      navigation.navigate('Leaderboard');
+   }
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Game Over!</Text>
       <Text style={styles.scoreLabel}>Your Final Score:</Text>
-      <Text style={styles.scoreValue}>{score}</Text>
+      <Text style={styles.scoreValue}>{finalScore}</Text>
+      <Text style={styles.levelText}>You reached Level {levelReached}</Text>
 
       {/* <Text style={styles.bestScore}>Your Best: {user?.highScore || 'N/A'}</Text> */}
-      {/* TODO: Add Score History Graph/List */}
 
       <View style={styles.buttonContainer}>
           <Button title="Play Again" onPress={handlePlayAgain} />
-          <Button title="Share Score" onPress={handleShare} />
-          <Button title="Leaderboard" onPress={() => navigation.navigate('Leaderboard')} />
-          <Button title="Home" onPress={() => navigation.navigate('Home')} />
+          <Button title="View Leaderboard" onPress={handleGoToLeaderboard} />
+          {/* Add Share button if desired */}
+          {/* <Button title="Share Score" onPress={() => {}} /> */}
       </View>
     </View>
   );
@@ -42,11 +48,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
+    backgroundColor: '#f0f0f0',
   },
   title: {
     fontSize: 30,
     fontWeight: 'bold',
     marginBottom: 30,
+    color: '#333',
   },
   scoreLabel: {
       fontSize: 20,
@@ -54,19 +62,24 @@ const styles = StyleSheet.create({
       marginBottom: 10,
   },
   scoreValue: {
-      fontSize: 48,
+      fontSize: 52,
       fontWeight: 'bold',
-      marginBottom: 40,
+      marginBottom: 15,
       color: '#e67e22',
+  },
+  levelText: {
+      fontSize: 18,
+      marginBottom: 40,
+      color: '#555',
   },
   bestScore: {
       fontSize: 18,
       marginBottom: 30,
   },
   buttonContainer: {
-      marginTop: 30,
+      marginTop: 20,
       width: '80%',
-      gap: 10, // Works in newer RN versions for spacing
+      gap: 15,
   }
 });
 
