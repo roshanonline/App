@@ -3,6 +3,7 @@ import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { View, Text, Button, StyleSheet, Alert, TextInput, TouchableOpacity } from 'react-native';
 import Timer from '../components/Timer';
 import ScoreCard from '../components/ScoreCard';
+import ShapeDisplay from '../components/ShapeDisplay'; // Import the ShapeDisplay component
 import { GameContext } from '../context/GameContext';
 
 // --- Constants for Modes ---
@@ -92,6 +93,15 @@ function GameModeScreen({ route, navigation }) {
   // --- Available items for Colors/Shapes modes ---
   const availableColors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange']; // Should match generator
   const availableShapes = ['circle', 'square', 'triangle', 'star', 'hexagon']; // Should match generator
+
+  // --- Shape colors for visual distinction ---
+  const shapeColors = {
+    circle: '#3498db',    // Blue
+    square: '#e74c3c',    // Red
+    triangle: '#2ecc71',  // Green
+    star: '#f39c12',      // Orange
+    hexagon: '#9b59b6'    // Purple
+  };
 
   // --- Game Logic Functions ---
 
@@ -227,15 +237,27 @@ function GameModeScreen({ route, navigation }) {
     }
   };
 
-  // --- Handle Quitting ---
+  // --- Handle Quitting --- Fixed quit game function
   const handleQuitGame = () => {
-    Alert.alert("Quit Game?","Are you sure?",
-      [ { text: "Cancel", style: "cancel" },
-        { text: "Quit", style: "destructive", onPress: () => {
+    // Make sure Alert is properly imported at the top
+    Alert.alert(
+      "Quit Game?",
+      "Are you sure you want to quit?",
+      [
+        { 
+          text: "Cancel", 
+          style: "cancel" 
+        },
+        { 
+          text: "Quit", 
+          style: "destructive", 
+          onPress: () => {
+            console.log("User confirmed quit");
             resetGame();
             navigation.navigate('Score', { finalScore: score, levelReached: level });
           }
-        } ]
+        }
+      ]
     );
   };
 
@@ -285,8 +307,18 @@ function GameModeScreen({ route, navigation }) {
         if (mode === MODES.COLORS) {
             displayElement = <View style={[styles.displayBox, { backgroundColor: activeItem }]} />;
         } else if (mode === MODES.SHAPES) {
-            // TODO: Implement shape rendering (could use text symbols, SVGs, or custom views)
-            displayElement = <Text style={styles.shapeText}>{activeItem.toUpperCase()}</Text>;
+            // Use ShapeDisplay component to display the shape
+            displayElement = (
+                <View style={styles.shapeDisplayContainer}>
+                    <ShapeDisplay 
+                        shape={activeItem} 
+                        size={150}
+                        color={shapeColors[activeItem] || '#3498db'} 
+                        stroke="#2c3e50"
+                        strokeWidth={3}
+                    />
+                </View>
+            );
         }
     }
 
@@ -294,21 +326,40 @@ function GameModeScreen({ route, navigation }) {
     let inputElement = null;
     if (isPlayerTurn) {
         const items = mode === MODES.COLORS ? availableColors : availableShapes;
-        const itemStyle = mode === MODES.COLORS ? styles.colorButton : styles.shapeButton;
 
         inputElement = (
             <View style={styles.inputGrid}>
-                {items.map((item) => (
-                    <TouchableOpacity
-                        key={item}
-                        style={[itemStyle, mode === MODES.COLORS ? { backgroundColor: item } : {}]}
-                        onPress={() => handlePlayerInput(item)}
-                        disabled={!isPlayerTurn}
-                    >
-                        {mode === MODES.SHAPES && <Text style={styles.shapeButtonText}>{item}</Text>}
-                         {/* Add icons or better visuals for shapes later */}
-                    </TouchableOpacity>
-                ))}
+                {items.map((item) => {
+                    if (mode === MODES.COLORS) {
+                        // Color buttons
+                        return (
+                            <TouchableOpacity
+                                key={item}
+                                style={[styles.colorButton, { backgroundColor: item }]}
+                                onPress={() => handlePlayerInput(item)}
+                                disabled={!isPlayerTurn}
+                            />
+                        );
+                    } else {
+                        // Shape buttons with ShapeDisplay component
+                        return (
+                            <TouchableOpacity
+                                key={item}
+                                style={styles.shapeButton}
+                                onPress={() => handlePlayerInput(item)}
+                                disabled={!isPlayerTurn}
+                            >
+                                <ShapeDisplay
+                                    shape={item}
+                                    size={50}
+                                    color={shapeColors[item] || '#3498db'}
+                                    stroke="#2c3e50"
+                                    strokeWidth={2}
+                                />
+                            </TouchableOpacity>
+                        );
+                    }
+                })}
             </View>
         );
     }
@@ -339,9 +390,12 @@ function GameModeScreen({ route, navigation }) {
         {renderGameArea()}
       </View>
 
-      <View style={styles.quitButtonContainer}>
-          <Button title="Quit Game" onPress={handleQuitGame} color="#c0392b" />
-      </View>
+      {/* Modified quit button for better touch response */}
+      <TouchableOpacity 
+        style={styles.quitButtonContainer} 
+        onPress={handleQuitGame}>
+        <Text style={styles.quitButtonText}>QUIT GAME</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -412,7 +466,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   // --- Colors/Shapes Mode Styles ---
-   visualArea: {
+  visualArea: {
     flex: 1, // Allow this area to grow
     width: '100%',
     justifyContent: 'center',
@@ -425,9 +479,11 @@ const styles = StyleSheet.create({
       borderWidth: 2,
       borderColor: '#7f8c8d',
   },
-   shapeText: { // Basic shape display
-      fontSize: 80,
-      fontWeight: 'bold',
+  shapeDisplayContainer: {
+      width: 150,
+      height: 150,
+      justifyContent: 'center',
+      alignItems: 'center',
   },
   inputGrid: { // Container for color/shape buttons
     flexDirection: 'row',
@@ -449,7 +505,7 @@ const styles = StyleSheet.create({
   shapeButton: {
      width: 80,
      height: 80,
-     borderRadius: 10, // Or make circle etc.
+     borderRadius: 10,
      margin: 10,
      borderWidth: 1,
      borderColor: '#7f8c8d',
@@ -457,14 +513,19 @@ const styles = StyleSheet.create({
      justifyContent: 'center',
      alignItems: 'center',
   },
-  shapeButtonText: {
-      fontSize: 14, // Adjust as needed
-      fontWeight: 'bold',
-  },
-  // --- Quit Button ---
+  // --- Quit Button --- Updated styles
   quitButtonContainer: {
       width: '60%',
-      marginBottom: 10,
+      marginBottom: 15,
+      backgroundColor: '#c0392b',
+      padding: 12,
+      borderRadius: 8,
+      alignItems: 'center',
+  },
+  quitButtonText: {
+      color: 'white',
+      fontSize: 16,
+      fontWeight: 'bold',
   }
 });
 
