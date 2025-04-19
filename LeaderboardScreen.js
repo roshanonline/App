@@ -1,122 +1,204 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, Button } from 'react-native';
-import { fetchLeaderboard } from '../utils/api'; // Import API function
+// screens/LeaderboardScreen.js
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { fetchAllTimeLeaderboard, fetchDailyLeaderboard } from '../utils/api';
 
-function LeaderboardScreen({ navigation }) {
-  const [scores, setScores] = useState([]);
+const LeaderboardScreen = ({ navigation }) => {
+  const [leaderboardData, setLeaderboardData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState('all-time'); // Example filter state
-
-  const loadScores = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await fetchLeaderboard(filter);
-      if (result.success) {
-          setScores(result.data);
-      } else {
-          setError(result.message || 'Failed to load scores');
-      }
-    } catch (err) {
-      setError('An error occurred while fetching scores.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [filter]); // Reload when filter changes
+  const [timeFilter, setTimeFilter] = useState('ALL_TIME'); // 'ALL_TIME' or 'DAILY'
 
   useEffect(() => {
-    loadScores();
-  }, [loadScores]); // Dependency array includes loadScores
+    loadLeaderboardData();
+  }, [timeFilter]);
 
-  const renderScoreItem = ({ item, index }) => (
-    <View style={styles.itemContainer}>
-      <Text style={styles.rank}>{index + 1}.</Text>
-      <Text style={styles.name}>{item.userName}</Text>
+  const loadLeaderboardData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      let data;
+      if (timeFilter === 'ALL_TIME') {
+        data = await fetchAllTimeLeaderboard();
+      } else {
+        data = await fetchDailyLeaderboard();
+      }
+      
+      setLeaderboardData(data);
+      setLoading(false);
+    } catch (err) {
+      console.error('Failed to load leaderboard:', err);
+      setError('Failed to load leaderboard');
+      setLoading(false);
+    }
+  };
+
+  const renderItem = ({ item, index }) => (
+    <View style={styles.scoreItem}>
+      <Text style={styles.rank}>{index + 1}</Text>
+      <Text style={styles.username}>{item.username}</Text>
       <Text style={styles.score}>{item.score}</Text>
-      {/* <Text style={styles.mode}>({item.gameMode})</Text> */}
     </View>
   );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Top Memory Masters</Text>
-      {/* Add Filter Buttons Here */}
-      <View style={styles.filterContainer}>
-         <Button title="All Time" onPress={() => setFilter('all-time')} disabled={filter === 'all-time'}/>
-         {/* <Button title="Weekly" onPress={() => setFilter('weekly')} disabled={filter === 'weekly'}/>
-         <Button title="Daily" onPress={() => setFilter('daily')} disabled={filter === 'daily'}/> */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backButton}>← Leaderboard</Text>
+        </TouchableOpacity>
       </View>
-
+      
+      <Text style={styles.title}>Top Memory Masters</Text>
+      
+      <View style={styles.filterContainer}>
+        <TouchableOpacity 
+          style={[styles.filterButton, timeFilter === 'ALL_TIME' && styles.activeFilter]}
+          onPress={() => setTimeFilter('ALL_TIME')}
+        >
+          <Text style={styles.filterText}>ALL TIME</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.filterButton, timeFilter === 'DAILY' && styles.activeFilter]}
+          onPress={() => setTimeFilter('DAILY')}
+        >
+          <Text style={styles.filterText}>TODAY</Text>
+        </TouchableOpacity>
+      </View>
+      
       {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="large" color="#0066cc" />
       ) : error ? (
-        <Text style={styles.errorText}>{error}</Text>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadLeaderboardData}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : leaderboardData.length === 0 ? (
+        <Text style={styles.noScoresText}>No scores available</Text>
       ) : (
         <FlatList
-          data={scores}
-          renderItem={renderScoreItem}
-          keyExtractor={(item) => item._id || Math.random().toString()} // Use _id from DB if available
-          style={styles.list}
+          data={leaderboardData}
+          renderItem={renderItem}
+          keyExtractor={(_, index) => index.toString()}
+          contentContainerStyle={styles.listContainer}
         />
       )}
-        <Button title="Back to Home" onPress={() => navigation.navigate('Home')} />
+      
+      <TouchableOpacity 
+        style={styles.homeButton}
+        onPress={() => navigation.navigate('Home')}
+      >
+        <Text style={styles.homeButtonText}>BACK TO HOME</Text>
+      </TouchableOpacity>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 15,
+    backgroundColor: '#f5f5f5',
+  },
+  header: {
+    padding: 16,
+  },
+  backButton: {
+    fontSize: 16,
+    color: '#333',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 15,
+    marginVertical: 16,
   },
   filterContainer: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      marginBottom: 15,
-      gap: 10,
-  },
-  list: {
-    flex: 1,
-  },
-  itemContainer: {
     flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  filterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginHorizontal: 8,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 20,
+  },
+  activeFilter: {
+    backgroundColor: '#0066cc',
+  },
+  filterText: {
+    fontWeight: '500',
+  },
+  listContainer: {
+    paddingHorizontal: 16,
+  },
+  scoreItem: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    padding: 16,
+    marginBottom: 8,
+    borderRadius: 8,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   rank: {
-    fontWeight: 'bold',
     width: 30,
+    fontWeight: 'bold',
+    fontSize: 16,
   },
-  name: {
-    flex: 1, // Take remaining space
+  username: {
+    flex: 1,
     fontSize: 16,
   },
   score: {
-    fontSize: 16,
     fontWeight: 'bold',
-    marginLeft: 10,
+    fontSize: 16,
   },
-  mode: {
-      fontSize: 12,
-      color: '#666',
-      marginLeft: 5,
+  errorContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
   },
   errorText: {
-      color: 'red',
-      textAlign: 'center',
-      marginTop: 20,
-  }
+    color: 'red',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#0066cc',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: 'white',
+    fontWeight: '500',
+  },
+  noScoresText: {
+    textAlign: 'center',
+    padding: 20,
+    color: '#666',
+  },
+  homeButton: {
+    backgroundColor: '#0066cc',
+    margin: 16,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  homeButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
 });
 
 export default LeaderboardScreen;
